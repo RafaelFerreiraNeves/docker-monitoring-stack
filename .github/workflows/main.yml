@@ -1,0 +1,23 @@
+name: Deploy Monitoring Stack
+
+on:
+workflow_dispatch:
+
+jobs:
+deploy:
+runs-on: ubuntu-latest
+
+```
+steps:
+  - name: Checkout Repository
+    uses: actions/checkout@v4
+
+  - name: Validate Docker Compose
+    run: docker compose config
+
+  - name: Start Monitoring Stack
+    run: docker compose up -d
+
+  - name: Show Running Containers
+    run: docker ps
+```

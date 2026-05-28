@@ -1,0 +1,5 @@
+jobs:
+  - name: local
+    url: unix:///var/run/docker.sock
+    update_every: 5
+    timeout: 10

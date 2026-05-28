@@ -1,0 +1,21 @@
+groups:
+  - name: container-alerts
+    rules:
+
+      - alert: ContainerStopped
+        expr: time() - container_last_seen{container_label_com_docker_compose_service!=""} > 60
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Container parado"
+          description: "O serviço {{ $labels.container_label_com_docker_compose_service }} parou de enviar métricas"
+
+      - alert: HighCPUUsage
+        expr: sum(rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service!=""}[1m])) by (container_label_com_docker_compose_service) > 0.8
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU acima de 80%"
+          description: "O serviço {{ $labels.container_label_com_docker_compose_service }} está consumindo muita CPU"

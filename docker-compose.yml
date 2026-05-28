@@ -1,0 +1,504 @@
+services:
+
+  # =========================
+  # WORDPRESS
+  # =========================
+
+  wordpress_db:
+    image: mariadb:10.11
+    container_name: wordpress_db
+
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wp_user
+      MYSQL_PASSWORD: wp_password
+
+    volumes:
+      - wordpress_db_data:/var/lib/mysql
+
+    restart: unless-stopped
+
+    networks:
+      - backend
+
+  wordpress:
+    image: wordpress:latest
+    container_name: wordpress_app
+
+    ports:
+      - "8080:80"
+
+    environment:
+      WORDPRESS_DB_HOST: wordpress_db
+      WORDPRESS_DB_USER: wp_user
+      WORDPRESS_DB_PASSWORD: wp_password
+      WORDPRESS_DB_NAME: wordpress
+
+    volumes:
+      - wordpress_app_data:/var/www/html
+
+    depends_on:
+      - wordpress_db
+
+    restart: unless-stopped
+
+    networks:
+      - frontend
+      - backend
+
+  # =========================
+  # GHOST CMS
+  # =========================
+
+  ghost_db:
+    image: mariadb:10.11
+    container_name: ghost_db
+
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: ghost
+      MYSQL_USER: ghost_user
+      MYSQL_PASSWORD: ghost_password
+
+    volumes:
+      - ghost_db_data:/var/lib/mysql
+
+    restart: unless-stopped
+
+    networks:
+      - backend
+
+  ghost:
+    image: ghost:latest
+    container_name: ghost_app
+
+    ports:
+      - "2368:2368"
+
+    environment:
+      database__client: mysql
+      database__connection__host: ghost_db
+      database__connection__user: ghost_user
+      database__connection__password: ghost_password
+      database__connection__database: ghost
+
+    volumes:
+      - ghost_content:/var/lib/ghost/content
+
+    depends_on:
+      - ghost_db
+
+    restart: unless-stopped
+
+    networks:
+      - frontend
+      - backend
+
+  # =========================
+  # BOOKSTACK
+  # =========================
+
+  bookstack_db:
+    image: mariadb:10.11
+    container_name: bookstack_db
+
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: bookstack
+      MYSQL_USER: bookstack_user
+      MYSQL_PASSWORD: bookstack_password
+
+    volumes:
+      - bookstack_db_data:/var/lib/mysql
+
+    restart: unless-stopped
+
+    networks:
+      - backend
+
+  bookstack:
+    image: lscr.io/linuxserver/bookstack:latest
+    container_name: bookstack_app
+
+    ports:
+      - "6875:80"
+
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: "America/Sao_Paulo"
+
+      APP_URL: "http://localhost:6875"
+
+      DB_HOST: "bookstack_db"
+      DB_PORT: "3306"
+      DB_DATABASE: "bookstack"
+      DB_USERNAME: "bookstack_user"
+      DB_PASSWORD: "bookstack_password"
+
+      APP_KEY: "base64:8jsw5IiGL7wjm8ki05tu6P1Z+pwPhVkKa4UQPw2SL+Q="
+
+    volumes:
+      - bookstack_data:/config
+
+    depends_on:
+      - bookstack_db
+
+    restart: unless-stopped
+
+    networks:
+      - frontend
+      - backend
+
+  # =========================
+  # NEXTCLOUD
+  # =========================
+
+  nextcloud_db:
+    image: mariadb:10.11
+    container_name: nextcloud_db
+
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: nextcloud_user
+      MYSQL_PASSWORD: nextcloud_password
+
+    volumes:
+      - nextcloud_db_data:/var/lib/mysql
+
+    restart: unless-stopped
+
+    networks:
+      - backend
+
+  redis:
+    image: redis:7
+    container_name: nextcloud_redis
+
+    restart: unless-stopped
+
+    networks:
+      - backend
+
+  nextcloud:
+    image: nextcloud:latest
+    container_name: nextcloud_app
+
+    ports:
+      - "8081:80"
+
+    environment:
+      MYSQL_HOST: nextcloud_db
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: nextcloud_user
+      MYSQL_PASSWORD: nextcloud_password
+      REDIS_HOST: redis
+
+    volumes:
+      - nextcloud_data:/var/www/html
+
+    depends_on:
+      - nextcloud_db
+      - redis
+
+    restart: unless-stopped
+
+    networks:
+      - frontend
+      - backend
+
+  # =========================
+  # PROMETHEUS
+  # =========================
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+
+    ports:
+      - "9090:9090"
+
+    volumes:
+      - ./prometheus:/etc/prometheus
+
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+
+    restart: unless-stopped
+
+    networks:
+      - backend
+
+  # =========================
+  # GRAFANA
+  # =========================
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+
+    ports:
+      - "3001:3000"
+
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+
+    restart: unless-stopped
+
+    depends_on:
+      - prometheus
+
+    networks:
+      - frontend
+      - backend
+
+  # =========================
+  # LOKI
+  # =========================
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+
+    ports:
+      - "3100:3100"
+
+    command:
+      - -config.file=/etc/loki/local-config.yaml
+
+    volumes:
+      - ./loki:/etc/loki
+      - ./loki/data:/loki
+
+    restart: unless-stopped
+
+    networks:
+      - backend
+
+  # =========================
+  # PROMTAIL
+  # =========================
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+
+    volumes:
+      - /var/log:/var/log
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./promtail:/etc/promtail
+
+    command:
+      - -config.file=/etc/promtail/promtail.yaml
+
+    depends_on:
+      - loki
+
+    restart: unless-stopped
+
+    networks:
+      - backend
+
+  # =========================
+  # CADVISOR
+  # =========================
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+
+    privileged: true
+
+    ports:
+      - "8082:8080"
+
+    command:
+      - '--docker_only=true'
+      - '--store_container_labels=true'
+
+    devices:
+      - /dev/kmsg
+
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+    restart: unless-stopped
+
+    networks:
+      - backend
+
+  # =========================
+  # NODE EXPORTER
+  # =========================
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node_exporter
+
+    ports:
+      - "9100:9100"
+
+    restart: unless-stopped
+
+    networks:
+      - backend
+
+  # =========================
+  # ZABBIX POSTGRES
+  # =========================
+
+  zabbix-postgres:
+    image: postgres:16
+    container_name: zabbix_postgres
+
+    environment:
+      POSTGRES_DB: zabbix
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbixpass
+
+    volumes:
+        - postgres-data:/var/lib/postgresql/data
+        - ./zabbix/backup:/backup
+        - ./zabbix/init:/docker-entrypoint-initdb.d
+
+    restart: unless-stopped
+
+    networks:
+      - backend
+
+  # =========================
+  # ZABBIX SERVER
+  # =========================
+
+  zabbix-server:
+    image: zabbix/zabbix-server-pgsql:latest
+    container_name: zabbix_server
+
+    environment:
+      DB_SERVER_HOST: zabbix-postgres
+      POSTGRES_DB: zabbix
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbixpass
+
+    depends_on:
+      - zabbix-postgres
+
+    ports:
+      - "10051:10051"
+
+    restart: unless-stopped
+
+    networks:
+      - backend
+
+  # =========================
+  # ZABBIX WEB
+  # =========================
+
+  zabbix-web:
+    image: zabbix/zabbix-web-nginx-pgsql:latest
+    container_name: zabbix_web
+
+    environment:
+      ZBX_SERVER_HOST: zabbix-server
+      DB_SERVER_HOST: zabbix-postgres
+      POSTGRES_DB: zabbix
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbixpass
+      PHP_TZ: America/Sao_Paulo
+
+    depends_on:
+      - zabbix-server
+      - zabbix-postgres
+
+    ports:
+      - "8083:8080"
+
+    restart: unless-stopped
+
+    networks:
+      - frontend
+      - backend
+
+  # =========================
+  # ZABBIX AGENT
+  # =========================
+
+  zabbix-agent:
+    image: zabbix/zabbix-agent2:latest
+    container_name: zabbix_agent
+
+    user: root
+
+    environment:
+      ZBX_HOSTNAME: DockerHost
+      ZBX_SERVER_HOST: zabbix-server
+
+    privileged: true
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    restart: unless-stopped
+
+    networks:
+      - backend
+
+  # =========================
+  # NETDATA
+  # =========================
+  
+  netdata:
+    image: netdata/netdata:stable
+    container_name: netdata
+    ports:
+     - "19999:19999"
+    restart: unless-stopped 
+    hostname: netdata
+
+    pid: host
+  
+    volumes:
+      - ./netdata/docker.conf:/etc/netdata/go.d/docker.conf
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+
+volumes:
+  wordpress_db_data:
+  wordpress_app_data:
+
+  ghost_db_data:
+  ghost_content:
+
+  bookstack_db_data:
+  bookstack_data:
+
+  nextcloud_db_data:
+  nextcloud_data:
+
+  prometheus_data:
+  grafana_data:
+
+  zabbix_postgres_data:
+
+  netdataconfig:
+  netdatalib:
+  netdatacache:
+
+  postgres-data:
+
+networks:
+  frontend:
+    driver: bridge
+
+  backend:
+    driver: bridge

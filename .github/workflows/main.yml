@@ -7,15 +7,15 @@ jobs:
  deploy:
   runs-on: ubuntu-latest
 
-steps:
-  - uses: actions/checkout@v4
+   steps:
+     - uses: actions/checkout@v4
 
-  - name: Validate Docker Compose
-    run: docker compose config
+     - name: Validate Docker Compose
+       run: docker compose config
 
-  - name: Start Monitoring Stack
-    run: docker compose up -d
+     - name: Start Monitoring Stack
+       run: docker compose up -d
 
-  - name: Show Running Containers
-    run: docker ps
+     - name: Show Running Containers
+       run: docker ps
 

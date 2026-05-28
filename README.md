@@ -237,12 +237,15 @@ git clone
 docker compose up -d
 ```
 
-Autor
+---
+
+# Autor
 
 Rafael Ferreira Neves
-```
 
 ---
-Licença
+
+# Licença
 
 Projeto desenvolvido para fins educacionais e portfólio DevOps/Cloud.
+

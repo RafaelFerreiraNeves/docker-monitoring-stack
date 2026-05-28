@@ -19,4 +19,4 @@ steps:
 
   - name: Show Running Containers
     run: docker ps
-```
+

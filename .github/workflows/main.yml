@@ -1,11 +1,11 @@
 name: Deploy Monitoring Stack
 
 on:
-workflow_dispatch:
+ workflow_dispatch:
 
 jobs:
-deploy:
-runs-on: ubuntu-latest
+ deploy:
+  runs-on: ubuntu-latest
 
 steps:
   - uses: actions/checkout@v4
